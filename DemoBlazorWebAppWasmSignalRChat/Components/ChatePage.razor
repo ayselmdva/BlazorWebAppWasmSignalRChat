@@ -1,0 +1,61 @@
+﻿
+@page "/chat"
+@using Microsoft.AspNetCore.SignalR.Client
+@rendermode InteractiveWebAssembly
+@inject NavigationManager NavManager
+
+
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">Netcode - Hub Chat</div>
+            <div class="card-body">
+                <ul class="list-group">
+                    @foreach(var message in Messages){
+                        <li class="mb-2">@message</li>
+
+                    }
+                </ul>
+            </div>
+            <div class="card-footer">
+                @if (!isConnected)
+                {
+                    <div class="alert alert-danger">Chat Disconnected</div>
+                }
+                else
+                {
+                    <div class="alert alert-success">Chat Connected</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code 
+{
+    private HubConnection? hubConnection;
+    private List<string> Messages = [];
+
+
+    private string? userName;
+    public string ? message;
+    private DateTime date = DateTime.Now;
+
+    protected async override Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder().WithUrl(NavManager.ToAbsoluteUri("/chathub")).Build();
+        hubConnection.On<string, string, DateTime>("ReceiveMessage", (userName, message, date)=>
+        {
+            var concatMessage = $"{date}{Environment.NewLine}{userName}{Environment.NewLine}{message}";
+            Messages.Add(concatMessage);
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private bool isConnected => hubConnection.State == HubConnectionState.Connected;
+
+    Task Send() => hubConnection!.SendAsync("SendMessage", userName, message, date);
+}
